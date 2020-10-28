@@ -18,6 +18,10 @@ import (
 	"log"
 	"net"
 
+	api "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v2"
+	serverv2 "github.com/envoyproxy/go-control-plane/pkg/server/v2"
+
 	"google.golang.org/grpc"
 
 	clusterservice "github.com/envoyproxy/go-control-plane/envoy/service/cluster/v3"
@@ -45,8 +49,18 @@ func registerServer(grpcServer *grpc.Server, server serverv3.Server) {
 	runtimeservice.RegisterRuntimeDiscoveryServiceServer(grpcServer, server)
 }
 
+func registerServerv2(grpcServer *grpc.Server, server serverv2.Server) {
+	// register services
+	discovery.RegisterAggregatedDiscoveryServiceServer(grpcServer, server)
+	api.RegisterEndpointDiscoveryServiceServer(grpcServer, server)
+	api.RegisterClusterDiscoveryServiceServer(grpcServer, server)
+	api.RegisterRouteDiscoveryServiceServer(grpcServer, server)
+	api.RegisterListenerDiscoveryServiceServer(grpcServer, server)
+	discovery.RegisterSecretDiscoveryServiceServer(grpcServer, server)
+}
+
 // RunServer starts an xDS server at the given port.
-func RunServer(ctx context.Context, srv3 serverv3.Server, port uint) {
+func RunServer(ctx context.Context, srv3 serverv3.Server, srv2 serverv2.Server, port uint) {
 	// gRPC golang library sets a very small upper bound for the number gRPC/h2
 	// streams over a single TCP connection. If a proxy multiplexes requests over
 	// a single connection to the management server, then it might lead to
@@ -61,6 +75,7 @@ func RunServer(ctx context.Context, srv3 serverv3.Server, port uint) {
 	}
 
 	registerServer(grpcServer, srv3)
+	registerServerv2(grpcServer, srv2)
 
 	log.Printf("management server listening on %d\n", port)
 	if err = grpcServer.Serve(lis); err != nil {

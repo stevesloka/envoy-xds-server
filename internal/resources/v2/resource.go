@@ -12,47 +12,41 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
-package resources
+package v2
 
 import (
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
-
-	cluster "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
-	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
-	endpoint "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
-	listener "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
-	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
-	hcm "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
-	"github.com/envoyproxy/go-control-plane/pkg/resource/v3"
+	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	endpoint "github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
+	listener "github.com/envoyproxy/go-control-plane/envoy/api/v2/listener"
+	route "github.com/envoyproxy/go-control-plane/envoy/api/v2/route"
+	hcm "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
 	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
+	"github.com/golang/protobuf/ptypes"
+	"github.com/stevesloka/envoy-xds-server/internal/resources"
 )
 
-const (
-	UpstreamHost = "www.envoyproxy.io"
-	UpstreamPort = 80
-)
-
-func MakeCluster(clusterName string) *cluster.Cluster {
-	return &cluster.Cluster{
+func MakeCluster(clusterName string) *v2.Cluster {
+	return &v2.Cluster{
 		Name:                 clusterName,
 		ConnectTimeout:       ptypes.DurationProto(5 * time.Second),
-		ClusterDiscoveryType: &cluster.Cluster_Type{Type: cluster.Cluster_EDS},
-		LbPolicy:             cluster.Cluster_ROUND_ROBIN,
+		ClusterDiscoveryType: &v2.Cluster_Type{Type: v2.Cluster_EDS},
+		LbPolicy:             v2.Cluster_ROUND_ROBIN,
 		//LoadAssignment:       makeEndpoint(clusterName, UpstreamHost),
-		DnsLookupFamily:  cluster.Cluster_V4_ONLY,
+		DnsLookupFamily:  v2.Cluster_V4_ONLY,
 		EdsClusterConfig: makeEDSCluster(),
 	}
 }
 
-func makeEDSCluster() *cluster.Cluster_EdsClusterConfig {
-	return &cluster.Cluster_EdsClusterConfig{
+func makeEDSCluster() *v2.Cluster_EdsClusterConfig {
+	return &v2.Cluster_EdsClusterConfig{
 		EdsConfig: makeConfigSource(),
 	}
 }
 
-func MakeEndpoint(clusterName string, eps []Endpoint) *endpoint.ClusterLoadAssignment {
+func MakeEndpoint(clusterName string, eps []resources.Endpoint) *v2.ClusterLoadAssignment {
 	var endpoints []*endpoint.LbEndpoint
 
 	for _, e := range eps {
@@ -75,7 +69,7 @@ func MakeEndpoint(clusterName string, eps []Endpoint) *endpoint.ClusterLoadAssig
 		})
 	}
 
-	return &endpoint.ClusterLoadAssignment{
+	return &v2.ClusterLoadAssignment{
 		ClusterName: clusterName,
 		Endpoints: []*endpoint.LocalityLbEndpoints{{
 			LbEndpoints: endpoints,
@@ -83,7 +77,7 @@ func MakeEndpoint(clusterName string, eps []Endpoint) *endpoint.ClusterLoadAssig
 	}
 }
 
-func MakeRoute(routes []Route) *route.RouteConfiguration {
+func MakeRoute(routes []resources.Route) *v2.RouteConfiguration {
 	var rts []*route.Route
 
 	for _, r := range routes {
@@ -104,7 +98,7 @@ func MakeRoute(routes []Route) *route.RouteConfiguration {
 		})
 	}
 
-	return &route.RouteConfiguration{
+	return &v2.RouteConfiguration{
 		Name: "listener_0",
 		VirtualHosts: []*route.VirtualHost{{
 			Name:    "local_service",
@@ -114,7 +108,7 @@ func MakeRoute(routes []Route) *route.RouteConfiguration {
 	}
 }
 
-func MakeHTTPListener(listenerName, route, address string, port uint32) *listener.Listener {
+func MakeHTTPListener(listenerName, route, address string, port uint32) *v2.Listener {
 	// HTTP filter configuration
 	manager := &hcm.HttpConnectionManager{
 		CodecType:  hcm.HttpConnectionManager_AUTO,
@@ -134,7 +128,7 @@ func MakeHTTPListener(listenerName, route, address string, port uint32) *listene
 		panic(err)
 	}
 
-	return &listener.Listener{
+	return &v2.Listener{
 		Name: listenerName,
 		Address: &core.Address{
 			Address: &core.Address_SocketAddress{
@@ -160,10 +154,8 @@ func MakeHTTPListener(listenerName, route, address string, port uint32) *listene
 
 func makeConfigSource() *core.ConfigSource {
 	source := &core.ConfigSource{}
-	source.ResourceApiVersion = resource.DefaultAPIVersion
 	source.ConfigSourceSpecifier = &core.ConfigSource_ApiConfigSource{
 		ApiConfigSource: &core.ApiConfigSource{
-			TransportApiVersion:       resource.DefaultAPIVersion,
 			ApiType:                   core.ApiConfigSource_GRPC,
 			SetNodeOnFirstMessageOnly: true,
 			GrpcServices: []*core.GrpcService{{

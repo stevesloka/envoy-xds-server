@@ -16,8 +16,12 @@ import (
 	"context"
 	"flag"
 
+	serverv2 "github.com/envoyproxy/go-control-plane/pkg/server/v2"
+
+	v2Cache "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
 	serverv3 "github.com/envoyproxy/go-control-plane/pkg/server/v3"
+	testv3 "github.com/envoyproxy/go-control-plane/pkg/test/v3"
 	log "github.com/sirupsen/logrus"
 	"github.com/stevesloka/envoy-xds-server/internal/processor"
 	"github.com/stevesloka/envoy-xds-server/internal/server"
@@ -52,12 +56,13 @@ func init() {
 func main() {
 	flag.Parse()
 
-	// Create a cache
-	cache := cache.NewSnapshotCache(false, cache.IDHash{}, l)
+	// Create a cachev3
+	cachev3 := cache.NewSnapshotCache(false, cache.IDHash{}, l)
+	cachev2 := v2Cache.NewSnapshotCache(false, v2Cache.IDHash{}, l)
 
 	// Create a processor
 	proc := processor.NewProcessor(
-		cache, nodeID, log.WithField("context", "processor"))
+		cachev3, cachev2, nodeID, log.WithField("context", "processor"))
 
 	// Create initial snapshot from file
 	proc.ProcessFile(watcher.NotifyMessage{
@@ -76,8 +81,10 @@ func main() {
 	go func() {
 		// Run the xDS server
 		ctx := context.Background()
-		srv := serverv3.NewServer(ctx, cache, nil)
-		server.RunServer(ctx, srv, port)
+		cb := &testv3.Callbacks{Debug: true}
+		srv := serverv3.NewServer(ctx, cachev3, cb)
+		srvv2 := serverv2.NewServer(ctx, cachev2, nil)
+		server.RunServer(ctx, srv, srvv2, port)
 	}()
 
 	for {

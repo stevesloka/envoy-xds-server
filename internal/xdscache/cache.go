@@ -15,6 +15,8 @@ package xdscache
 import (
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
 	"github.com/stevesloka/envoy-xds-server/internal/resources"
+	v2 "github.com/stevesloka/envoy-xds-server/internal/resources/v2"
+	v3 "github.com/stevesloka/envoy-xds-server/internal/resources/v3"
 )
 
 type XDSCache struct {
@@ -24,41 +26,60 @@ type XDSCache struct {
 	Endpoints map[string]resources.Endpoint
 }
 
-func (xds *XDSCache) ClusterContents() []types.Resource {
+func (xds *XDSCache) ClusterContents(version int) []types.Resource {
 	var r []types.Resource
 
 	for _, c := range xds.Clusters {
-		r = append(r, resources.MakeCluster(c.Name))
+		switch version {
+		case 3:
+			r = append(r, v3.MakeCluster(c.Name))
+		case 2:
+			r = append(r, v2.MakeCluster(c.Name))
+		}
 	}
 
 	return r
 }
 
-func (xds *XDSCache) RouteContents() []types.Resource {
+func (xds *XDSCache) RouteContents(version int) []types.Resource {
 
 	var routesArray []resources.Route
 	for _, r := range xds.Routes {
 		routesArray = append(routesArray, r)
 	}
 
-	return []types.Resource{resources.MakeRoute(routesArray)}
+	switch version {
+	case 2:
+		return []types.Resource{v2.MakeRoute(routesArray)}
+	}
+	return []types.Resource{v3.MakeRoute(routesArray)}
 }
 
-func (xds *XDSCache) ListenerContents() []types.Resource {
+func (xds *XDSCache) ListenerContents(version int) []types.Resource {
 	var r []types.Resource
 
 	for _, l := range xds.Listeners {
-		r = append(r, resources.MakeHTTPListener(l.Name, l.RouteNames[0], l.Address, l.Port))
+		switch version {
+		case 3:
+			r = append(r, v3.MakeHTTPListener(l.Name, l.RouteNames[0], l.Address, l.Port))
+		case 2:
+			r = append(r, v2.MakeHTTPListener(l.Name, l.RouteNames[0], l.Address, l.Port))
+		}
 	}
 
 	return r
 }
 
-func (xds *XDSCache) EndpointsContents() []types.Resource {
+func (xds *XDSCache) EndpointsContents(version int) []types.Resource {
 	var r []types.Resource
 
 	for _, c := range xds.Clusters {
-		r = append(r, resources.MakeEndpoint(c.Name, c.Endpoints))
+		switch version {
+		case 3:
+			r = append(r, v3.MakeEndpoint(c.Name, c.Endpoints))
+		case 2:
+			r = append(r, v2.MakeEndpoint(c.Name, c.Endpoints))
+		}
 	}
 
 	return r

@@ -24,14 +24,16 @@ import (
 
 	"github.com/stevesloka/envoy-xds-server/internal/xdscache"
 
+	cachev2 "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
 	"github.com/sirupsen/logrus"
 	"github.com/stevesloka/envoy-xds-server/internal/watcher"
 )
 
 type Processor struct {
-	cache  cache.SnapshotCache
-	nodeID string
+	cache   cache.SnapshotCache
+	cachev2 cachev2.SnapshotCache
+	nodeID  string
 
 	// snapshotVersion holds the current version of the snapshot.
 	snapshotVersion int64
@@ -41,9 +43,10 @@ type Processor struct {
 	xdsCache xdscache.XDSCache
 }
 
-func NewProcessor(cache cache.SnapshotCache, nodeID string, log logrus.FieldLogger) *Processor {
+func NewProcessor(cache cache.SnapshotCache, cachev2 cachev2.SnapshotCache, nodeID string, log logrus.FieldLogger) *Processor {
 	return &Processor{
 		cache:           cache,
+		cachev2:         cachev2,
 		nodeID:          nodeID,
 		snapshotVersion: rand.Int63n(1000),
 		FieldLogger:     log,
@@ -106,24 +109,46 @@ func (p *Processor) ProcessFile(file watcher.NotifyMessage) {
 
 	// Create the snapshot that we'll serve to Envoy
 	snapshot := cache.NewSnapshot(
-		p.newSnapshotVersion(),         // version
-		p.xdsCache.EndpointsContents(), // endpoints
-		p.xdsCache.ClusterContents(),   // clusters
-		p.xdsCache.RouteContents(),     // routes
-		p.xdsCache.ListenerContents(),  // listeners
-		[]types.Resource{},             // runtimes
-		[]types.Resource{},             // secrets
+		p.newSnapshotVersion(),          // version
+		p.xdsCache.EndpointsContents(3), // endpoints
+		p.xdsCache.ClusterContents(3),   // clusters
+		p.xdsCache.RouteContents(3),     // routes
+		p.xdsCache.ListenerContents(3),  // listeners
+		[]types.Resource{},              // runtimes
+		[]types.Resource{},              // secrets
+	)
+
+	snapshotv2 := cachev2.NewSnapshot(
+		p.newSnapshotVersion(),          // version
+		p.xdsCache.EndpointsContents(2), // endpoints
+		p.xdsCache.ClusterContents(2),   // clusters
+		p.xdsCache.RouteContents(2),     // routes
+		p.xdsCache.ListenerContents(2),  // listeners
+		[]types.Resource{},              // runtimes
+		[]types.Resource{},              // secrets
 	)
 
 	if err := snapshot.Consistent(); err != nil {
 		p.Errorf("snapshot inconsistency: %+v\n\n\n%+v", snapshot, err)
 		return
 	}
-	p.Debugf("will serve snapshot %+v", snapshot)
+	p.Debugf("will serve v3 snapshot %+v", snapshot)
 
 	// Add the snapshot to the cache
 	if err := p.cache.SetSnapshot(p.nodeID, snapshot); err != nil {
 		p.Errorf("snapshot error %q for %+v", err, snapshot)
+		os.Exit(1)
+	}
+
+	if err := snapshotv2.Consistent(); err != nil {
+		p.Errorf("snapshot v2 inconsistency: %+v\n\n\n%+v", snapshot, err)
+		return
+	}
+	p.Debugf("will serve v2 snapshot %+v", snapshot)
+
+	// Add the snapshot to the cache
+	if err := p.cachev2.SetSnapshot(p.nodeID, snapshotv2); err != nil {
+		p.Errorf("snapshotv2 error %q for %+v", err, snapshotv2)
 		os.Exit(1)
 	}
 }

@@ -2,6 +2,29 @@
 
 This is a sample repo which demonstrates how to spin up an xDS Server for Envoy Proxy. 
 
+## Sample Config File
+
+```yaml
+name: testconfig
+spec: 
+  listeners:
+  - name: listener_0
+    address: 0.0.0.0
+    port: 9000
+    routes:
+    - name: echoroute
+      prefix: /
+      clusters:
+      - echo
+  clusters:
+  - name: echo
+    endpoints:
+    - address: 10.52.131.244
+      port: 9101
+    - address: 10.52.131.244
+      port: 9102
+```
+
 ## Sample Apps
 
 Run some sample apps in docker to give some endpoints to route to:

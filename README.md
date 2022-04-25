@@ -19,9 +19,9 @@ spec:
   clusters:
   - name: echo
     endpoints:
-    - address: 10.52.131.244
+    - address: 127.0.0.1
       port: 9101
-    - address: 10.52.131.244
+    - address: 127.0.0.1
       port: 9102
 ```
 

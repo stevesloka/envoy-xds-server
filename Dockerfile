@@ -5,7 +5,7 @@ ADD . /build/
 WORKDIR /build
 
 # Build the binary
-RUN go build -o envoy-xds-server ./cmd/server/main.go
+RUN CGO_ENABLED=0 go build -o envoy-xds-server ./cmd/server/main.go
 
 # Copy into scratch
 FROM scratch

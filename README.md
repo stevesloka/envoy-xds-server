@@ -28,7 +28,11 @@ spec:
 ## Sample Apps
 
 Run some sample apps in docker to give some endpoints to route to:
-```
+```sh
+# using docker-compose.yml example configuration
+docker-compose -f sample-apps.yml up -d
+
+# or if you just want to run the actual docker commands
 docker run -d --rm --name=echo9100 -p 9100:8080 stevesloka/echo-server echo-server --echotext=Sample-Endpoint!
 docker run -d --rm --name=echo9101 -p 9101:8080 stevesloka/echo-server echo-server --echotext=Sample-Endpoint!
 docker run -d --rm --name=echo9102 -p 9102:8080 stevesloka/echo-server echo-server --echotext=Sample-Endpoint!
@@ -39,7 +43,11 @@ docker run -d --rm --name=echo9104 -p 9104:8080 stevesloka/echo-server echo-serv
 ## Stop All Sample Apps
 
 Stop all the sample endpoints created in the previous step:
-```
+```sh
+# with docker-compose
+docker-compose -f sample-apps.yml down
+
+# with regular docker
 docker stop echo9100
 docker stop echo9101
 docker stop echo9102

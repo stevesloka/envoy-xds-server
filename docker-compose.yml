@@ -1,0 +1,28 @@
+version: "3.9"
+
+services:
+  echo9100:
+    image: stevesloka/echo-server
+    ports:
+      - "9100:8080"
+    command: ["echo-server", "--echotext=Sample-Endpoint-9100"]
+  echo9101:
+    image: stevesloka/echo-server
+    ports:
+      - "9101:8080"
+    command: ["echo-server", "--echotext=Sample-Endpoint-9101"]
+  echo9102:
+    image: stevesloka/echo-server
+    ports:
+      - "9102:8080"
+    command: ["echo-server", "--echotext=Sample-Endpoint-9102"]
+  echo9103:
+    image: stevesloka/echo-server
+    ports:
+      - "9103:8080"
+    command: ["echo-server", "--echotext=Sample-Endpoint-9103"]
+  echo9104:
+    image: stevesloka/echo-server
+    ports:
+      - "9104:8080"
+    command: ["echo-server", "--echotext=Sample-Endpoint-9104"]

@@ -15,6 +15,7 @@
 package resources
 
 import (
+	"google.golang.org/protobuf/types/known/anypb"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
@@ -24,6 +25,7 @@ import (
 	endpoint "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	listener "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
+	router "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/router/v3"
 	hcm "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/resource/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
@@ -115,6 +117,8 @@ func MakeRoute(routes []Route) *route.RouteConfiguration {
 }
 
 func MakeHTTPListener(listenerName, route, address string, port uint32) *listener.Listener {
+	routerConfig, _ := anypb.New(&router.Router{})
+
 	// HTTP filter configuration
 	manager := &hcm.HttpConnectionManager{
 		CodecType:  hcm.HttpConnectionManager_AUTO,
@@ -126,7 +130,8 @@ func MakeHTTPListener(listenerName, route, address string, port uint32) *listene
 			},
 		},
 		HttpFilters: []*hcm.HttpFilter{{
-			Name: wellknown.Router,
+			Name:       wellknown.Router,
+			ConfigType: &hcm.HttpFilter_TypedConfig{TypedConfig: routerConfig},
 		}},
 	}
 	pbst, err := ptypes.MarshalAny(manager)

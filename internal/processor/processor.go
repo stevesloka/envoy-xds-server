@@ -15,6 +15,8 @@
 package processor
 
 import (
+	"context"
+	"github.com/envoyproxy/go-control-plane/pkg/resource/v3"
 	"math"
 	"math/rand"
 	"os"
@@ -106,16 +108,23 @@ func (p *Processor) ProcessFile(file watcher.NotifyMessage) {
 		}
 	}
 
+	// Create a resource map keyed off the type URL of a resource,
+	// followed by the slice of resource objects.
+	resources := map[resource.Type][]types.Resource{
+		resource.EndpointType: p.xdsCache.EndpointsContents(),
+		resource.ClusterType:  p.xdsCache.ClusterContents(),
+		resource.RouteType:    p.xdsCache.RouteContents(),
+		resource.ListenerType: p.xdsCache.ListenerContents(),
+	}
 	// Create the snapshot that we'll serve to Envoy
-	snapshot := cache.NewSnapshot(
-		p.newSnapshotVersion(),         // version
-		p.xdsCache.EndpointsContents(), // endpoints
-		p.xdsCache.ClusterContents(),   // clusters
-		p.xdsCache.RouteContents(),     // routes
-		p.xdsCache.ListenerContents(),  // listeners
-		[]types.Resource{},             // runtimes
-		[]types.Resource{},             // secrets
+	snapshot, err := cache.NewSnapshot(
+		p.newSnapshotVersion(), // version
+		resources,
 	)
+	if err != nil {
+		p.Errorf("error generating new snapshot: %v", err)
+		return
+	}
 
 	if err := snapshot.Consistent(); err != nil {
 		p.Errorf("snapshot inconsistency: %+v\n\n\n%+v", snapshot, err)
@@ -124,7 +133,7 @@ func (p *Processor) ProcessFile(file watcher.NotifyMessage) {
 	p.Debugf("will serve snapshot %+v", snapshot)
 
 	// Add the snapshot to the cache
-	if err := p.cache.SetSnapshot(p.nodeID, snapshot); err != nil {
+	if err := p.cache.SetSnapshot(context.Background(), p.nodeID, snapshot); err != nil {
 		p.Errorf("snapshot error %q for %+v", err, snapshot)
 		os.Exit(1)
 	}

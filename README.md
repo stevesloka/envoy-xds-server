@@ -2,6 +2,21 @@
 
 This is a sample repo which demonstrates how to spin up an xDS Server for Envoy Proxy. 
 
+**NOTE:** Drain timeout is set to 1s in [hack/start-envoy.sh](hack/start-envoy.sh)
+
+## Curl
+
+Curl [echo-server](https://github.com/stevesloka/echo-server)
+
+```bash
+curl -i 'localhost:9000/?format=text'
+curl -i 'localhost:9000/foo?format=text'
+```
+
+```bash
+while sleep 1; do curl -i 'localhost:9000/?format=text'
+```
+
 ## Sample Config File
 
 ```yaml
